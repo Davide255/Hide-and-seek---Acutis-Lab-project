@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>Hide &amp; Seek</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col antialiased">
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-4 inset-x-4 z-50 flex justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+    <div id="toast-inner" class="bg-red-500 text-white px-4 py-2.5 rounded-xl shadow-xl text-sm font-semibold max-w-xs text-center"></div>
+  </div>
+
+  <!-- Header -->
+  <header class="pt-14 pb-6 text-center select-none">
+    <div class="text-6xl mb-3">🙈</div>
+    <h1 class="text-3xl font-black tracking-tight">Hide &amp; Seek</h1>
+    <p class="text-gray-500 text-sm mt-1">Real-world game companion</p>
+  </header>
+
+  <!-- Main card area -->
+  <main class="flex-1 flex items-start justify-center px-6 pt-4">
+    <div class="w-full max-w-sm space-y-4">
+
+      <!-- ── Step 1: enter room code ── -->
+      <div id="step-code">
+        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+          Enter room code
+        </label>
+        <input id="inp-code" type="text" maxlength="6" placeholder="ABC123" autocomplete="off"
+          autocapitalize="characters" inputmode="text"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-4
+                 text-white placeholder-gray-600 focus:outline-none focus:ring-2
+                 focus:ring-orange-500 focus:border-transparent transition
+                 uppercase tracking-[0.3em] font-mono text-2xl text-center" />
+        <button id="btn-continue" onclick="validateCode()"
+          class="mt-3 w-full bg-orange-500 hover:bg-orange-400 active:scale-95 text-white
+                 font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-orange-500/25 text-sm">
+          Continue →
+        </button>
+        <p id="code-error" class="hidden text-red-400 text-xs text-center mt-2 font-medium"></p>
+      </div>
+
+      <!-- ── Step 2: enter name to join ── -->
+      <div id="step-name" class="hidden">
+        <div class="flex items-center gap-2 mb-5">
+          <div class="flex-1 h-px bg-gray-800"></div>
+          <div class="flex items-center gap-2 bg-green-500/15 border border-green-500/30
+                      px-3 py-1.5 rounded-full">
+            <span class="text-green-400 text-xs font-bold">✓ Room</span>
+            <span id="found-code" class="text-green-300 font-black font-mono tracking-widest text-sm"></span>
+            <span class="text-green-400 text-xs font-bold">found</span>
+          </div>
+          <div class="flex-1 h-px bg-gray-800"></div>
+        </div>
+
+        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+          Your name
+        </label>
+        <input id="inp-name-join" type="text" maxlength="20" placeholder="Enter your name"
+          autocomplete="off"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3
+                 text-white placeholder-gray-600 focus:outline-none focus:ring-2
+                 focus:ring-orange-500 focus:border-transparent transition" />
+        <button onclick="submitJoin()"
+          class="mt-3 w-full bg-orange-500 hover:bg-orange-400 active:scale-95 text-white
+                 font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-orange-500/25 text-sm">
+          Join Game →
+        </button>
+      </div>
+
+      <!-- ── Step 3: enter name to create ── -->
+      <div id="step-create" class="hidden">
+        <div class="flex items-center gap-2 mb-5">
+          <div class="flex-1 h-px bg-gray-800"></div>
+          <span class="text-gray-400 text-xs font-bold uppercase tracking-widest">New room</span>
+          <div class="flex-1 h-px bg-gray-800"></div>
+        </div>
+
+        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+          Your name
+        </label>
+        <input id="inp-name-create" type="text" maxlength="20" placeholder="Enter your name"
+          autocomplete="off"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3
+                 text-white placeholder-gray-600 focus:outline-none focus:ring-2
+                 focus:ring-orange-500 focus:border-transparent transition" />
+        <button onclick="submitCreate()"
+          class="mt-3 w-full bg-orange-500 hover:bg-orange-400 active:scale-95 text-white
+                 font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-orange-500/25 text-sm">
+          Create Room
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="px-6 pb-10 pt-6 text-center">
+    <!-- Shown on step-code -->
+    <div id="footer-create">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="flex-1 h-px bg-gray-800"></div>
+        <span class="text-gray-600 text-xs font-semibold">OR</span>
+        <div class="flex-1 h-px bg-gray-800"></div>
+      </div>
+      <button onclick="showCreate()"
+        class="w-full max-w-sm border border-gray-700 hover:border-orange-500/50 hover:text-orange-400
+               text-gray-300 font-bold py-3.5 rounded-xl transition-all text-sm active:scale-95">
+        + Create a Room
+      </button>
+    </div>
+    <!-- Shown on step-name / step-create -->
+    <div id="footer-back" class="hidden">
+      <button onclick="goBack()" class="text-gray-500 hover:text-gray-300 text-sm font-medium transition">
+        ← Back
+      </button>
+    </div>
+  </footer>
+
+  <script>
+  (() => {
+    const BACKEND = 'https://hide-and-seek-acutis-lab-project.onrender.com';
+    let validRoomId = '';
+
+    // ── Toast ────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function toast(msg) {
+      const wrap  = document.getElementById('toast');
+      const inner = document.getElementById('toast-inner');
+      inner.textContent = msg;
+      wrap.classList.replace('opacity-0', 'opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => wrap.classList.replace('opacity-100', 'opacity-0'), 3500);
+    }
+
+    // ── Step navigation ───────────────────────────────────────────────────────
+    function showStep(step) {
+      ['code', 'name', 'create'].forEach(s => {
+        document.getElementById('step-' + s).classList.toggle('hidden', s !== step);
+      });
+      document.getElementById('footer-create').classList.toggle('hidden', step !== 'code');
+      document.getElementById('footer-back').classList.toggle('hidden',   step === 'code');
+      document.getElementById('code-error').classList.add('hidden');
+      const focus = { code: 'inp-code', name: 'inp-name-join', create: 'inp-name-create' };
+      setTimeout(() => document.getElementById(focus[step])?.focus(), 80);
+    }
+
+    window.showCreate = () => showStep('create');
+    window.goBack    = () => showStep('code');
+
+    // ── Validate code ─────────────────────────────────────────────────────────
+    window.validateCode = async function () {
+      const code = document.getElementById('inp-code').value.trim().toUpperCase();
+      if (code.length !== 6) { toast('Enter a 6-character code'); return; }
+
+      const btn = document.getElementById('btn-continue');
+      btn.disabled = true;
+      btn.textContent = 'Checking…';
+
+      try {
+        const res = await fetch(`${BACKEND}/rooms/${code}`);
+        if (res.ok) {
+          validRoomId = code;
+          document.getElementById('found-code').textContent = code;
+          showStep('name');
+        } else {
+          const errEl = document.getElementById('code-error');
+          errEl.textContent = 'Room not found — check the code and try again.';
+          errEl.classList.remove('hidden');
+        }
+      } catch {
+        toast('Cannot reach server — it may be waking up, try again in a moment.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Continue →';
+      }
+    };
+
+    // ── Submit join ────────────────────────────────────────────────────────────
+    window.submitJoin = function () {
+      const name = document.getElementById('inp-name-join').value.trim();
+      if (!name) { toast('Enter your name'); return; }
+      location.href = `game.html?action=join&roomId=${encodeURIComponent(validRoomId)}&name=${encodeURIComponent(name)}`;
+    };
+
+    // ── Submit create ──────────────────────────────────────────────────────────
+    window.submitCreate = function () {
+      const name = document.getElementById('inp-name-create').value.trim();
+      if (!name) { toast('Enter your name'); return; }
+      location.href = `game.html?action=create&name=${encodeURIComponent(name)}`;
+    };
+
+    // ── Show error passed from game.html ────────────────────────────────────────
+    const err = new URLSearchParams(location.search).get('error');
+    if (err) toast(decodeURIComponent(err));
+
+    // ── Auto-uppercase code input; auto-submit when 6 chars ────────────────────
+    const codeInp = document.getElementById('inp-code');
+    codeInp.addEventListener('input', e => {
+      const s = e.target.selectionStart;
+      e.target.value = e.target.value.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+      e.target.setSelectionRange(s, s);
+      if (e.target.value.length === 6) validateCode();
+    });
+    codeInp.addEventListener('keydown', e => { if (e.key === 'Enter') validateCode(); });
+    document.getElementById('inp-name-join').addEventListener('keydown',    e => { if (e.key === 'Enter') submitJoin(); });
+    document.getElementById('inp-name-create').addEventListener('keydown',  e => { if (e.key === 'Enter') submitCreate(); });
+  })();
+  </script>
+</body>
+</html>

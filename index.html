@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>Hide &amp; Seek</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          animation: {
+            'spin-slow': 'spin 2s linear infinite',
+            'ping-slow': 'ping 2s cubic-bezier(0,0,0.2,1) infinite',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    @keyframes tick { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+    .timer-tick { animation: tick 1s ease-in-out infinite; }
+    html, body { height: 100%; }
+  </style>
+</head>
+
+<body class="bg-gray-950 text-gray-100 min-h-full flex flex-col antialiased">
+
+  <!-- ── Toast ── -->
+  <div id="toast" class="fixed top-4 inset-x-4 z-50 flex justify-center pointer-events-none opacity-0 transition-opacity duration-300">
+    <div id="toast-inner" class="bg-red-500 text-white px-4 py-2.5 rounded-xl shadow-xl text-sm font-semibold max-w-xs text-center"></div>
+  </div>
+
+  <!-- ── Loading overlay ── -->
+  <div id="loading" class="fixed inset-0 bg-gray-950/90 backdrop-blur-sm flex flex-col items-center justify-center z-40 hidden">
+    <div class="w-10 h-10 rounded-full border-2 border-orange-500 border-t-transparent animate-spin mb-4"></div>
+    <p class="text-gray-300 font-semibold text-sm">Connecting to server…</p>
+    <p class="text-gray-500 text-xs mt-1">First wake-up may take ~30 s</p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SCREEN 1 · Home
+       ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-home" class="flex flex-col flex-1 items-center justify-center px-6 py-12 gap-10">
+
+    <div class="text-center select-none">
+      <div class="text-7xl mb-4">🙈</div>
+      <h1 class="text-4xl font-black tracking-tight">Hide &amp; Seek</h1>
+      <p class="text-gray-500 text-sm mt-2">Real-world game companion</p>
+    </div>
+
+    <div class="w-full max-w-sm space-y-4">
+
+      <!-- Name -->
+      <div>
+        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Your name</label>
+        <input id="inp-name" type="text" placeholder="Enter your name" maxlength="20" autocomplete="off"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600
+                 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition" />
+      </div>
+
+      <!-- Create -->
+      <button onclick="createRoom()"
+        class="w-full bg-orange-500 hover:bg-orange-400 active:scale-95 text-white font-bold py-3.5 rounded-xl
+               transition-all shadow-lg shadow-orange-500/25 text-sm">
+        Create Room
+      </button>
+
+      <div class="flex items-center gap-3 py-1">
+        <div class="flex-1 h-px bg-gray-800"></div>
+        <span class="text-gray-600 text-xs font-semibold">OR</span>
+        <div class="flex-1 h-px bg-gray-800"></div>
+      </div>
+
+      <!-- Join -->
+      <div>
+        <label class="block text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Room code</label>
+        <input id="inp-code" type="text" placeholder="ABC123" maxlength="6" autocomplete="off" autocapitalize="characters"
+          class="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600
+                 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition
+                 uppercase tracking-[0.25em] font-mono text-xl text-center" />
+      </div>
+      <button onclick="joinRoom()"
+        class="w-full bg-gray-700 hover:bg-gray-600 active:scale-95 text-white font-bold py-3.5 rounded-xl
+               transition-all text-sm">
+        Join Game
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SCREEN 2 · Lobby
+       ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-lobby" class="hidden flex-col flex-1 px-6 py-8 gap-6 max-w-lg mx-auto w-full">
+
+    <div class="flex items-center justify-between">
+      <h2 class="text-lg font-black">Lobby</h2>
+      <button onclick="leaveRoom()" class="text-gray-500 hover:text-gray-300 text-sm transition font-medium">Leave</button>
+    </div>
+
+    <!-- Room code card -->
+    <div class="bg-gray-800/70 border border-gray-700/50 rounded-2xl p-5 text-center">
+      <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2">Room code — share with friends</p>
+      <div id="lob-code" class="text-5xl font-black font-mono tracking-[0.25em] text-orange-400 mb-3 select-all">——</div>
+      <button onclick="copyCode()" class="inline-flex items-center gap-1.5 text-gray-400 hover:text-white text-xs font-semibold transition">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+        </svg>
+        <span id="copy-label">Tap to copy</span>
+      </button>
+    </div>
+
+    <!-- Players -->
+    <div class="flex-1 min-h-0">
+      <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+        Players (<span id="lob-count">0</span>)
+      </p>
+      <div id="lob-players" class="space-y-2 overflow-y-auto"></div>
+    </div>
+
+    <!-- Bottom controls -->
+    <div id="lob-master-ctrl" class="hidden space-y-2">
+      <p id="lob-need-more" class="text-center text-xs text-gray-500">Need at least 2 players to start</p>
+      <button id="btn-start" onclick="startGame()" disabled
+        class="w-full py-4 rounded-xl font-bold text-sm transition-all
+               bg-orange-500 hover:bg-orange-400 text-white shadow-lg shadow-orange-500/25
+               disabled:bg-gray-800 disabled:text-gray-600 disabled:shadow-none disabled:cursor-not-allowed">
+        Start Game
+      </button>
+    </div>
+    <p id="lob-waiting" class="hidden text-center text-gray-500 text-sm py-2">
+      Waiting for the master to start…
+    </p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SCREEN 3 · Hiding countdown
+       ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-hiding" class="hidden flex-col flex-1 items-center justify-center px-6 py-12 gap-8 text-center">
+
+    <div>
+      <div id="hid-emoji" class="text-6xl mb-4">🏃</div>
+      <h2 id="hid-headline" class="text-3xl font-black">HIDE NOW!</h2>
+      <p id="hid-sub" class="text-gray-400 mt-2 text-sm"></p>
+    </div>
+
+    <!-- Circular timer -->
+    <div class="relative flex items-center justify-center w-40 h-40">
+      <div class="absolute inset-0 rounded-full border-4 border-orange-500/20"></div>
+      <div class="absolute inset-2 rounded-full border-4 border-orange-500/40"></div>
+      <span id="hid-timer" class="text-6xl font-black text-orange-400 timer-tick tabular-nums">20</span>
+    </div>
+
+    <p class="text-gray-600 text-xs uppercase tracking-widest font-semibold">Game starts when timer hits zero</p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SCREEN 4 · Active game
+       ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-active" class="hidden flex-col flex-1 px-6 py-8 gap-5 max-w-lg mx-auto w-full">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <h2 id="act-headline" class="text-2xl font-black"></h2>
+        <p id="act-sub" class="text-gray-400 text-sm mt-0.5"></p>
+      </div>
+      <div id="act-badge" class="shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mt-1"></div>
+    </div>
+
+    <!-- SEEKER: hider list with tag buttons -->
+    <div id="seeker-panel" class="hidden flex-col flex-1 gap-3 min-h-0">
+      <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Players to find</p>
+      <div id="seeker-list" class="space-y-2 overflow-y-auto flex-1"></div>
+    </div>
+
+    <!-- HIDER: status + leaderboard -->
+    <div id="hider-panel" class="hidden flex-col flex-1 gap-5 min-h-0">
+      <div id="hider-card" class="rounded-2xl p-6 text-center border">
+        <div id="hider-card-emoji" class="text-5xl mb-3">🤫</div>
+        <h3 id="hider-card-title" class="text-xl font-bold"></h3>
+        <p id="hider-card-desc" class="text-sm mt-1 text-gray-400"></p>
+      </div>
+      <div class="flex-1 min-h-0">
+        <p class="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3">Live leaderboard</p>
+        <div id="hider-lb" class="space-y-2 overflow-y-auto"></div>
+      </div>
+    </div>
+
+    <!-- Master: end game -->
+    <div id="act-master-ctrl" class="hidden">
+      <button onclick="endGame()"
+        class="w-full border border-red-500/40 text-red-400 hover:bg-red-500/10 active:scale-95
+               font-semibold py-2.5 rounded-xl transition-all text-sm">
+        End Game Early
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       SCREEN 5 · Game over
+       ════════════════════════════════════════════════════════════════ -->
+  <div id="screen-over" class="hidden flex-col flex-1 items-center px-6 py-10 gap-6 max-w-lg mx-auto w-full">
+
+    <div class="text-center">
+      <div class="text-6xl mb-3">🏆</div>
+      <h2 class="text-3xl font-black">Game Over!</h2>
+      <p class="text-gray-500 text-sm mt-1">Final standings</p>
+    </div>
+
+    <div id="over-lb" class="w-full space-y-3"></div>
+
+    <div class="w-full space-y-3 mt-auto pt-4">
+      <div id="over-master-ctrl" class="hidden">
+        <button onclick="resetGame()"
+          class="w-full bg-orange-500 hover:bg-orange-400 active:scale-95 text-white font-bold
+                 py-4 rounded-xl transition-all shadow-lg shadow-orange-500/25 text-sm">
+          Play Again
+        </button>
+      </div>
+      <button onclick="leaveRoom()"
+        class="w-full border border-gray-700 hover:border-gray-500 text-gray-400 hover:text-white
+               font-semibold py-3.5 rounded-xl transition-all text-sm active:scale-95">
+        Leave Room
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Script ── -->
+  <script src="https://hide-and-seek-acutis-lab-project.onrender.com/socket.io/socket.io.js"></script>
+  <script>
+  (() => {
+    const BACKEND = 'https://hide-and-seek-acutis-lab-project.onrender.com';
+
+    // ── State ────────────────────────────────────────────────────────────────
+    let socket = null;
+    let myId   = null;
+    let myName = '';
+    let roomId = null;
+    let room   = null;
+    let isMaster = false;
+
+    // ── Screens ──────────────────────────────────────────────────────────────
+    const SCREENS = ['home','lobby','hiding','active','over'];
+
+    function show(name) {
+      SCREENS.forEach(s => {
+        const el = document.getElementById('screen-' + s);
+        const active = s === name;
+        el.classList.toggle('hidden', !active);
+        el.classList.toggle('flex',    active);
+      });
+    }
+
+    // ── Toast ────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function toast(msg, type = 'error') {
+      const wrap  = document.getElementById('toast');
+      const inner = document.getElementById('toast-inner');
+      inner.className = (type === 'error'
+        ? 'bg-red-500'
+        : 'bg-green-600') + ' text-white px-4 py-2.5 rounded-xl shadow-xl text-sm font-semibold max-w-xs text-center';
+      inner.textContent = msg;
+      wrap.classList.remove('opacity-0');
+      wrap.classList.add('opacity-100');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        wrap.classList.remove('opacity-100');
+        wrap.classList.add('opacity-0');
+      }, 3000);
+    }
+
+    function loading(on) {
+      document.getElementById('loading').classList.toggle('hidden', !on);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function esc(s) {
+      return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function avatar(name) {
+      return `<div class="w-9 h-9 shrink-0 rounded-full bg-gray-700 flex items-center justify-center
+                          text-sm font-black text-gray-300">${esc(name[0].toUpperCase())}</div>`;
+    }
+
+    const MEDALS = ['🥇','🥈','🥉'];
+
+    // ── Render: lobby ────────────────────────────────────────────────────────
+    function renderLobby() {
+      if (!room) return;
+      document.getElementById('lob-code').textContent  = room.id;
+      document.getElementById('lob-count').textContent = room.players.length;
+
+      document.getElementById('lob-players').innerHTML = room.players.map(p => {
+        const tags = [];
+        if (p.role === 'master') tags.push('<span class="text-[11px] font-bold text-yellow-400 uppercase tracking-wider">master</span>');
+        if (p.id === myId)       tags.push('<span class="text-[11px] font-bold text-orange-400 uppercase tracking-wider">you</span>');
+        return `
+          <div class="flex items-center gap-3 bg-gray-800/60 border border-gray-700/40 rounded-xl px-4 py-3">
+            ${avatar(p.name)}
+            <span class="flex-1 font-semibold text-sm">${esc(p.name)}</span>
+            <div class="flex gap-2">${tags.join('')}</div>
+          </div>`;
+      }).join('');
+
+      const canStart = room.players.length >= 2;
+      document.getElementById('lob-master-ctrl').classList.toggle('hidden', !isMaster);
+      document.getElementById('lob-waiting').classList.toggle('hidden', isMaster);
+      document.getElementById('btn-start').disabled = !canStart;
+      document.getElementById('lob-need-more').classList.toggle('hidden', canStart);
+    }
+
+    // ── Render: hiding screen ────────────────────────────────────────────────
+    function renderHiding(seekerId, hideTime) {
+      const seeker = room.players.find(p => p.id === seekerId);
+      const amSeeker = seekerId === myId;
+      document.getElementById('hid-emoji').textContent    = amSeeker ? '🔍' : '🏃';
+      document.getElementById('hid-headline').textContent = amSeeker ? 'YOU ARE THE SEEKER!' : 'HIDE NOW!';
+      document.getElementById('hid-sub').textContent      = amSeeker
+        ? 'Wait for the countdown, then go find everyone!'
+        : `${seeker ? esc(seeker.name) : 'Someone'} is the seeker — find your best spot!`;
+      document.getElementById('hid-timer').textContent = hideTime;
+    }
+
+    // ── Render: active game ──────────────────────────────────────────────────
+    function renderActive() {
+      if (!room) return;
+      const amSeeker = room.seekerId === myId;
+      const me       = room.players.find(p => p.id === myId);
+
+      // Header
+      const badge = document.getElementById('act-badge');
+      if (amSeeker) {
+        document.getElementById('act-headline').textContent = 'SEEK! 🔍';
+        document.getElementById('act-sub').textContent      = 'Tag all the hiders to win';
+        badge.textContent  = 'Seeker';
+        badge.className    = 'shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mt-1 bg-red-500/20 text-red-400';
+      } else {
+        const caught = me?.status === 'caught';
+        document.getElementById('act-headline').textContent = caught ? 'CAUGHT! 😵'  : 'HIDE! 🤫';
+        document.getElementById('act-sub').textContent      = caught ? "You've been found" : 'Stay out of sight!';
+        badge.textContent = caught ? 'Caught' : 'Hiding';
+        badge.className   = `shrink-0 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mt-1 ${
+          caught ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`;
+      }
+
+      // Panels
+      document.getElementById('seeker-panel').classList.toggle('hidden', !amSeeker);
+      document.getElementById('hider-panel').classList.toggle('hidden',  amSeeker);
+      document.getElementById('act-master-ctrl').classList.toggle('hidden', !isMaster);
+
+      if (amSeeker) {
+        const hiders = room.players.filter(p => p.id !== myId);
+        document.getElementById('seeker-list').innerHTML = hiders.map(p => {
+          const caught = p.status === 'caught';
+          return `
+            <div class="flex items-center gap-3 bg-gray-800/60 border border-gray-700/40 rounded-xl px-4 py-3
+                        ${caught ? 'opacity-50' : ''}">
+              ${avatar(p.name)}
+              <span class="flex-1 font-semibold text-sm">${esc(p.name)}</span>
+              <span class="text-xl">${caught ? '😵' : '🙈'}</span>
+              ${caught
+                ? '<span class="text-xs text-gray-500 font-bold uppercase tracking-wider">Caught</span>'
+                : `<button onclick="tagPlayer('${p.id}')"
+                     class="bg-red-500 hover:bg-red-400 active:scale-95 text-white text-xs font-bold
+                            px-4 py-2 rounded-lg transition-all">Tag!</button>`
+              }
+            </div>`;
+        }).join('') || '<p class="text-center text-gray-600 text-sm py-4">All players caught!</p>';
+      } else {
+        const caught = me?.status === 'caught';
+        const card   = document.getElementById('hider-card');
+        card.className = caught
+          ? 'rounded-2xl p-6 text-center border bg-red-900/20 border-red-500/30'
+          : 'rounded-2xl p-6 text-center border bg-green-900/20 border-green-500/30';
+        document.getElementById('hider-card-emoji').textContent = caught ? '😵' : '🤫';
+        document.getElementById('hider-card-title').textContent = caught ? "You've been caught!" : 'Stay hidden!';
+        document.getElementById('hider-card-desc').textContent  = caught
+          ? 'Sit tight — watch the leaderboard'
+          : "Don't let the seeker find you";
+        document.getElementById('hider-lb').innerHTML = renderLeaderboard(room.leaderboard);
+      }
+    }
+
+    function renderLeaderboard(lb) {
+      return lb.map((p, i) => `
+        <div class="flex items-center gap-3 bg-gray-800/60 border rounded-xl px-4 py-3
+                    ${p.id === myId ? 'border-orange-500/40' : 'border-gray-700/40'}">
+          <span class="text-xl w-7 text-center shrink-0">${MEDALS[i] ?? `${i+1}.`}</span>
+          ${avatar(p.name)}
+          <span class="flex-1 font-semibold text-sm">${esc(p.name)}${p.id === myId
+            ? ' <span class="text-orange-400 text-[11px] font-bold">(you)</span>' : ''}</span>
+          <span class="text-orange-400 font-black text-sm tabular-nums">${p.score} pts</span>
+        </div>`).join('');
+    }
+
+    // ── Socket ────────────────────────────────────────────────────────────────
+    function initSocket(afterConnect) {
+      if (socket) {
+        if (socket.connected) { afterConnect(); return; }
+        socket.once('connect', afterConnect);
+        return;
+      }
+      loading(true);
+      socket = io(BACKEND, { transports: ['websocket', 'polling'] });
+
+      socket.on('connect', () => {
+        myId = socket.id;
+        loading(false);
+      });
+
+      socket.on('connect_error', () => {
+        loading(false);
+        toast('Cannot reach server — it may be waking up, try again in a moment.');
+      });
+
+      socket.on('error', ({ message }) => toast(message));
+
+      socket.on('room_created', ({ roomId: id, room: r }) => {
+        roomId = id; room = r; isMaster = true;
+        renderLobby();
+        show('lobby');
+      });
+
+      socket.on('room_joined', ({ room: r }) => {
+        room = r; isMaster = false;
+        renderLobby();
+        show('lobby');
+      });
+
+      socket.on('player_joined', ({ room: r }) => {
+        room = r; renderLobby();
+        toast(`${r.players.at(-1)?.name ?? 'Someone'} joined the room`, 'ok');
+      });
+
+      socket.on('player_left', ({ playerName, room: r }) => {
+        room = r;
+        toast(`${playerName} left the room`);
+        // Re-check master status in case role was transferred
+        isMaster = room.masterId === myId;
+        const cur = document.querySelector('[id^="screen-"]:not(.hidden)')?.id;
+        if (cur === 'screen-lobby')  renderLobby();
+        if (cur === 'screen-active') renderActive();
+      });
+
+      socket.on('hiding_started', ({ seekerId, hideTime, room: r }) => {
+        room = r;
+        renderHiding(seekerId, hideTime);
+        show('hiding');
+      });
+
+      socket.on('countdown', ({ timeRemaining }) => {
+        document.getElementById('hid-timer').textContent = timeRemaining;
+      });
+
+      socket.on('game_active', ({ room: r }) => {
+        room = r;
+        renderActive();
+        show('active');
+      });
+
+      socket.on('player_tagged', ({ targetName, room: r }) => {
+        room = r;
+        toast(`${targetName} was caught! 😵`, 'error');
+        renderActive();
+      });
+
+      socket.on('game_over', ({ room: r, leaderboard }) => {
+        room = { ...r, leaderboard };
+        document.getElementById('over-lb').innerHTML = renderLeaderboard(leaderboard);
+        document.getElementById('over-master-ctrl').classList.toggle('hidden', !isMaster);
+        show('over');
+      });
+
+      socket.on('game_reset', ({ room: r }) => {
+        room = r;
+        renderLobby();
+        show('lobby');
+      });
+
+      socket.once('connect', afterConnect);
+    }
+
+    // ── Actions ───────────────────────────────────────────────────────────────
+    function getName() {
+      const v = document.getElementById('inp-name').value.trim();
+      if (!v) { toast('Enter your name first'); return null; }
+      return v;
+    }
+
+    window.createRoom = function () {
+      const name = getName(); if (!name) return;
+      myName = name;
+      initSocket(() => socket.emit('create_room', { name }));
+    };
+
+    window.joinRoom = function () {
+      const name = getName(); if (!name) return;
+      const code = document.getElementById('inp-code').value.trim().toUpperCase();
+      if (!code) { toast('Enter a room code'); return; }
+      myName = name;
+      initSocket(() => socket.emit('join_room', { roomId: code, name }));
+    };
+
+    window.startGame = function () {
+      socket.emit('start_game', { roomId });
+    };
+
+    window.tagPlayer = function (targetId) {
+      socket.emit('tag', { roomId, targetId });
+    };
+
+    window.endGame = function () {
+      if (!confirm('End the game now?')) return;
+      socket.emit('end_game', { roomId });
+    };
+
+    window.resetGame = function () {
+      socket.emit('reset_game', { roomId });
+    };
+
+    window.leaveRoom = function () {
+      if (socket) { socket.disconnect(); socket = null; }
+      roomId = null; room = null; isMaster = false;
+      document.getElementById('inp-name').value = myName;
+      show('home');
+    };
+
+    window.copyCode = function () {
+      const code = document.getElementById('lob-code').textContent;
+      navigator.clipboard?.writeText(code).then(() => {
+        const lbl = document.getElementById('copy-label');
+        lbl.textContent = '✓ Copied!';
+        setTimeout(() => lbl.textContent = 'Tap to copy', 2000);
+      });
+    };
+
+    // Enter key shortcuts
+    document.getElementById('inp-name').addEventListener('keydown', e => { if (e.key==='Enter') createRoom(); });
+    document.getElementById('inp-code').addEventListener('keydown', e => { if (e.key==='Enter') joinRoom(); });
+    // Auto-uppercase room code input
+    document.getElementById('inp-code').addEventListener('input', e => {
+      const s = e.target.selectionStart;
+      e.target.value = e.target.value.toUpperCase();
+      e.target.setSelectionRange(s, s);
+    });
+
+  })();
+  </script>
+</body>
+</html>

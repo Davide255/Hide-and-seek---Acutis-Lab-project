@@ -14,10 +14,15 @@
   },
   "homepage": "https://github.com/Davide255/Hide-and-seek---Acutis-Lab-project#readme",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "test": "jest --testEnvironment=node --forceExit"
   },
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "socket.io-client": "^4.7.2"
   }
 }

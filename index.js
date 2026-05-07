@@ -6,7 +6,10 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
+  pingTimeout: 60000,
 });
+
+const RECONNECT_GRACE_MS = 30_000;
 
 const HIDE_TIME = parseInt(process.env.HIDE_TIME || "20", 10);
 
@@ -30,6 +33,7 @@ function createPlayer(socketId, name, role = "player") {
 
 function getLeaderboard(room) {
   return Object.values(room.players)
+    .filter(p => !p.disconnected)
     .sort((a, b) => b.score - a.score)
     .map(({ id, name, score, status, role }) => ({ id, name, score, status, role }));
 }
@@ -40,7 +44,7 @@ function getRoomState(room) {
     status: room.status,
     seekerId: room.seekerId,
     masterId: room.masterId,
-    players: Object.values(room.players),
+    players: Object.values(room.players).filter(p => !p.disconnected),
     leaderboard: getLeaderboard(room),
     hideTimeRemaining: room.hideTimeRemaining,
   };
@@ -212,40 +216,102 @@ io.on("connection", (socket) => {
 
     const player = room.players[socket.id];
     if (!player) return;
-    delete room.players[socket.id];
 
-    // Delete empty rooms
-    if (Object.keys(room.players).length === 0) {
-      clearInterval(room.countdownInterval);
-      delete rooms[roomId];
+    // Mark disconnected but keep in room for a grace period so they can rejoin
+    player.disconnected = true;
+    const disconnectedSocketId = socket.id;
+
+    const cleanupTimer = setTimeout(() => {
+      const r = rooms[roomId];
+      if (!r) return;
+      const p = r.players[disconnectedSocketId];
+      if (!p || !p.disconnected) return; // already rejoined
+
+      delete r.players[disconnectedSocketId];
+
+      if (Object.keys(r.players).length === 0) {
+        clearInterval(r.countdownInterval);
+        delete rooms[roomId];
+        return;
+      }
+
+      const wasSeeker = r.seekerId === disconnectedSocketId;
+      const wasMaster = r.masterId === disconnectedSocketId;
+
+      if (wasMaster) {
+        const activePlayers = Object.keys(r.players).filter(id => !r.players[id].disconnected);
+        const newMasterId = activePlayers[0] || Object.keys(r.players)[0];
+        r.masterId = newMasterId;
+        r.players[newMasterId].role = "master";
+      }
+
+      io.to(roomId).emit("player_left", {
+        playerId: disconnectedSocketId,
+        playerName: p.name,
+        room: getRoomState(r),
+      });
+
+      if (wasSeeker && (r.status === "HIDING" || r.status === "ACTIVE")) {
+        endGame(roomId);
+        return;
+      }
+
+      if ((r.status === "ACTIVE" || r.status === "HIDING") && checkAllCaught(r)) {
+        endGame(roomId);
+      }
+    }, RECONNECT_GRACE_MS);
+
+    player.cleanupTimer = cleanupTimer;
+  });
+
+  socket.on("rejoin_room", ({ roomId, name } = {}) => {
+    const id = roomId?.toUpperCase();
+    const room = rooms[id];
+    if (!room) return socket.emit("error", { message: "Room not found" });
+
+    // Find the disconnected slot for this player by name
+    const oldEntry = Object.entries(room.players).find(
+      ([, p]) => p.name === name && p.disconnected
+    );
+
+    if (!oldEntry) {
+      // No pending slot — treat as a fresh join if still in lobby
+      if (room.status !== "LOBBY")
+        return socket.emit("error", { message: "Game in progress, cannot rejoin" });
+      const player = createPlayer(socket.id, name.trim());
+      room.players[socket.id] = player;
+      socketToRoom[socket.id] = id;
+      socket.join(id);
+      socket.emit("room_joined", { player, room: getRoomState(room) });
+      socket.to(id).emit("player_joined", { player, room: getRoomState(room) });
       return;
     }
 
-    const wasSeeker = room.seekerId === socket.id;
-    const wasMaster = room.masterId === socket.id;
+    const [oldSocketId, player] = oldEntry;
 
-    // Transfer master role to the next available player
-    if (wasMaster) {
-      const newMasterId = Object.keys(room.players)[0];
-      room.masterId = newMasterId;
-      room.players[newMasterId].role = "master";
-    }
+    clearTimeout(player.cleanupTimer);
+    delete player.cleanupTimer;
+    delete player.disconnected;
 
-    io.to(roomId).emit("player_left", {
-      playerId: socket.id,
+    // Remap player to the new socket ID
+    delete room.players[oldSocketId];
+    player.id = socket.id;
+    room.players[socket.id] = player;
+    socketToRoom[socket.id] = id;
+
+    if (room.masterId === oldSocketId) room.masterId = socket.id;
+    if (room.seekerId === oldSocketId) room.seekerId = socket.id;
+
+    socket.join(id);
+
+    socket.emit("room_rejoined", {
+      room: getRoomState(room),
+      isMaster: room.masterId === socket.id,
+    });
+    socket.to(id).emit("player_rejoined", {
       playerName: player.name,
       room: getRoomState(room),
     });
-
-    // Seeker leaving during an active game cannot be resolved gracefully
-    if (wasSeeker && (room.status === "HIDING" || room.status === "ACTIVE")) {
-      endGame(roomId);
-      return;
-    }
-
-    if ((room.status === "ACTIVE" || room.status === "HIDING") && checkAllCaught(room)) {
-      endGame(roomId);
-    }
   });
 });
 

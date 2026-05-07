@@ -300,6 +300,26 @@
 
     socket.on('connect', () => {
       myId = socket.id;
+
+      // Reconnect path: socket dropped and came back (roomId still in memory)
+      if (roomId) {
+        socket.emit('rejoin_room', { roomId, name: myName });
+        return;
+      }
+
+      // Page-refresh path: session saved in sessionStorage
+      const saved = sessionStorage.getItem('hs_session');
+      if (saved) {
+        try {
+          const { roomId: savedRoomId, name: savedName } = JSON.parse(saved);
+          if (savedRoomId && savedName === myName) {
+            socket.emit('rejoin_room', { roomId: savedRoomId, name: savedName });
+            return;
+          }
+        } catch (_) { /* ignore corrupted data */ }
+      }
+
+      // Fresh connect
       if (action === 'create') {
         socket.emit('create_room', { name: myName });
       } else {
@@ -324,11 +344,13 @@
 
     socket.on('room_created', ({ roomId: id, room: r }) => {
       roomId = id; room = r; isMaster = true;
+      sessionStorage.setItem('hs_session', JSON.stringify({ roomId: id, name: myName }));
       renderLobby(); show('lobby');
     });
 
     socket.on('room_joined', ({ room: r }) => {
-      roomId = r.id; room = r; isMaster = false;  // ← bug fix: roomId was missing here
+      roomId = r.id; room = r; isMaster = false;
+      sessionStorage.setItem('hs_session', JSON.stringify({ roomId: r.id, name: myName }));
       renderLobby(); show('lobby');
     });
 
@@ -384,6 +406,43 @@
       room = r; renderLobby(); show('lobby');
     });
 
+    socket.on('room_rejoined', ({ room: r, isMaster: im }) => {
+      roomId = r.id; room = r; isMaster = im;
+      myId = socket.id;
+      sessionStorage.setItem('hs_session', JSON.stringify({ roomId: r.id, name: myName }));
+
+      if (room.status === 'LOBBY') {
+        renderLobby(); show('lobby');
+      } else if (room.status === 'HIDING') {
+        const amSeeker = room.seekerId === myId;
+        const seeker   = room.players.find(p => p.id === room.seekerId);
+        document.getElementById('hid-emoji').textContent    = amSeeker ? '🔍' : '🏃';
+        document.getElementById('hid-headline').textContent = amSeeker ? 'YOU ARE THE SEEKER!' : 'HIDE NOW!';
+        document.getElementById('hid-sub').textContent      = amSeeker
+          ? 'Wait for the countdown, then go find everyone!'
+          : `${seeker ? esc(seeker.name) : 'Someone'} is the seeker — find your best spot!`;
+        document.getElementById('hid-timer').textContent = room.hideTimeRemaining;
+        show('hiding');
+      } else if (room.status === 'ACTIVE') {
+        renderActive(); show('active');
+      } else if (room.status === 'FINISHED') {
+        document.getElementById('over-lb').innerHTML = renderLeaderboard(room.leaderboard);
+        document.getElementById('over-master-ctrl').classList.toggle('hidden', !isMaster);
+        show('over');
+      }
+
+      toast('Reconnected!', 'ok');
+    });
+
+    socket.on('player_rejoined', ({ playerName, room: r }) => {
+      room = r;
+      isMaster = room.masterId === myId;
+      toast(`${playerName} reconnected`, 'ok');
+      const cur = document.querySelector('[id^="screen-"]:not(.hidden)')?.id;
+      if (cur === 'screen-lobby')  renderLobby();
+      if (cur === 'screen-active') renderActive();
+    });
+
     // ── Actions ───────────────────────────────────────────────────────────────
     window.startGame  = () => socket.emit('start_game', { roomId });
     window.tagPlayer  = (targetId) => socket.emit('tag', { roomId, targetId });
@@ -391,6 +450,7 @@
     window.resetGame  = () => socket.emit('reset_game', { roomId });
 
     window.leaveRoom  = () => {
+      sessionStorage.removeItem('hs_session');
       socket.disconnect();
       location.href = 'join.html';
     };

@@ -117,20 +117,6 @@ Full documentation of all Socket.IO events and REST endpoints, including payload
 
 ---
 
-### `serve-local.js` — Local debug server (gitignored)
-
-A minimal Node.js HTTP server (no dependencies) that serves `index.html` to every device on the local network. Useful for testing the frontend on real phones before deploying.
-
-```bash
-node serve-local.js
-# This machine  →  http://localhost:8080
-# Other devices →  http://192.168.x.x:8080
-```
-
-The file is listed in `.gitignore` and is never committed.
-
----
-
 ## Running locally
 
 **Backend:**

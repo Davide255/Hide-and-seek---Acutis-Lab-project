@@ -151,9 +151,7 @@ input:focus {
   display: none !important;
 }
 
-.flex {
-  display: flex !important;
-}
+
 
 .items-center {
   align-items: center !important;
@@ -328,7 +326,13 @@ main > div {
   font-size: 0.72rem;
   text-transform: uppercase;
 }
-
+#screen-connecting,
+#screen-lobby,
+#screen-hiding,
+#screen-active,
+#screen-over {
+  display: none;
+}
 #step-code input,
 #step-name input,
 #step-create input {

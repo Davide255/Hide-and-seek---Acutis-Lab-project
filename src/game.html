@@ -171,12 +171,12 @@
     // ── Screens ───────────────────────────────────────────────────────────────
     const SCREENS = ['connecting','lobby','hiding','active','over'];
     function show(name) {
-      SCREENS.forEach(s => {
-        const el = document.getElementById('screen-' + s);
-        el.classList.toggle('hidden', s !== name);
-        el.classList.toggle('flex',   s === name);
-      });
-    }
+    SCREENS.forEach(s => {
+      const el = document.getElementById('screen-' + s);
+      el.classList.toggle('hidden', s !== name);
+      el.classList.toggle('flex',   s === name);
+    });
+    } 
 
     // ── Toast ─────────────────────────────────────────────────────────────────
     let toastTimer;

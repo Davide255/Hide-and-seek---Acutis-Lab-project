@@ -248,7 +248,7 @@ main,
 .game-page #screen-active,
 .game-page #screen-hiding,
 .game-page #screen-over {
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 50%;
   transform: translateX(-50%);
@@ -878,7 +878,7 @@ main > div {
 ═══════════════════════════════════ */
 
 #screen-lobby {
-  display: flex !important;
+  display: flex;
   flex-direction: column;
   gap: 1.25rem;
   width: 100%;

@@ -31,7 +31,7 @@
   <!-- ════════════════════════════════════════════════════════════
        SCREEN: Lobby
        ════════════════════════════════════════════════════════════ -->
-  <div id="screen-lobby">
+  <div id="screen-lobby" class="hidden">
 
     <div>
       <h2>Lobby</h2>
@@ -71,7 +71,7 @@
   <!-- ════════════════════════════════════════════════════════════
        SCREEN: Hiding countdown
        ════════════════════════════════════════════════════════════ -->
-  <div id="screen-hiding">
+  <div id="screen-hiding" class="hidden">
     <div>
       <div id="hid-emoji">🏃</div>
       <h2 id="hid-headline">HIDE NOW!</h2>
@@ -88,7 +88,7 @@
   <!-- ════════════════════════════════════════════════════════════
        SCREEN: Active game
        ════════════════════════════════════════════════════════════ -->
-  <div id="screen-active">
+  <div id="screen-active" class="hidden">
 
     <div>
       <div>
@@ -127,7 +127,7 @@
   <!-- ════════════════════════════════════════════════════════════
        SCREEN: Game over
        ════════════════════════════════════════════════════════════ -->
-  <div id="screen-over">
+  <div id="screen-over" class="hidden">
     <div>
       <div>🏆</div>
       <h2>Game Over!</h2>
@@ -171,12 +171,12 @@
     // ── Screens ───────────────────────────────────────────────────────────────
     const SCREENS = ['connecting','lobby','hiding','active','over'];
     function show(name) {
-    SCREENS.forEach(s => {
-      const el = document.getElementById('screen-' + s);
-      el.classList.toggle('hidden', s !== name);
-      el.classList.toggle('flex',   s === name);
-    });
-    } 
+      SCREENS.forEach(s => {
+        const el = document.getElementById('screen-' + s);
+        if (!el) return;
+        el.classList.toggle('hidden', s !== name);
+      });
+    }
 
     // ── Toast ─────────────────────────────────────────────────────────────────
     let toastTimer;

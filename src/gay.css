@@ -248,12 +248,20 @@ main,
 .game-page #screen-active,
 .game-page #screen-hiding,
 .game-page #screen-over {
-  position: fixed;
-  top: 0;
-  left: 50%;
-  transform: translateX(-50%);
   width: min(100%, 48rem);
   min-height: 100vh;
+  margin: 0 auto;
+  position: relative;
+}
+
+html,
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+body {
+  position: relative;
 }
 
 /* Header */

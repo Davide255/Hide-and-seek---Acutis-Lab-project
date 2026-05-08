@@ -252,8 +252,9 @@ body > footer,
 #screen-over {
   position: absolute;
   top: 0;
-  left: 0;
-  width: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(100%, 48rem);
   min-height: 100vh;
 }
 

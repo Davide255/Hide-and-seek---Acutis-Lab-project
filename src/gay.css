@@ -243,8 +243,6 @@ main,
   margin: 0 auto;
 }
 
-body > main,
-body > footer,
 .game-page #screen-connecting,
 .game-page #screen-lobby,
 .game-page #screen-active,

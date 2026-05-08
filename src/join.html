@@ -179,6 +179,9 @@
     const err = new URLSearchParams(location.search).get('error');
     if (err) toast(decodeURIComponent(err));
 
+    // Initialize to show only the code step
+    showStep('code');
+
     // ── Auto-uppercase code input; auto-submit when 6 chars ────────────────────
     const codeInp = document.getElementById('inp-code');
     codeInp.addEventListener('input', e => {

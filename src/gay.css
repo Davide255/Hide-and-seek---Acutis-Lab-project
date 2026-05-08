@@ -813,6 +813,26 @@ main > div {
     padding: 1.4rem;
   }
 
+  #step-create > div:first-child {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  #step-create > div:first-child > div {
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 43, 89, 0.15);
+  }
+
+  #step-create > div:first-child > span {
+    padding: 0 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+  }
+
   button {
     min-height: 3rem;
     padding: 0.95rem 1rem;

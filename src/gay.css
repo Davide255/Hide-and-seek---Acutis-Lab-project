@@ -151,6 +151,10 @@ input:focus {
   display: none !important;
 }
 
+.flex {
+  display: flex !important;
+}
+
 
 
 .items-center {
@@ -246,7 +250,11 @@ body > footer,
 #screen-active,
 #screen-hiding,
 #screen-over {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  min-height: 100vh;
 }
 
 /* Header */
